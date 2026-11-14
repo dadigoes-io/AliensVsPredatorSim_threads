@@ -12,22 +12,32 @@ class Environment():
     def is_taken(self, row, column):
         return self.matrix[row][column] is not None
 
+
+    # Hacer atomico get_random_empty_pos y add_individual
     def add_individual(self, ind):
         pos = ind.pos
-        
+
         if self.is_taken(pos[0], pos[1]):
             return False
 
-        self.matrix[pos[0], pos[1]] = ind
+        self.matrix[pos[0]][pos[1]] = ind
         return True
 
     def get_random_empty_pos(self):
 
-        occupied = False
+        while True:
+            row = random.randrange(self.size)
+            col = random.randrange(self.size)
 
-        while occupied:
-            pos = (random.randint(0, self.size), random.randint(0, self.size))
-            occupied =  (self.matrix[pos[0]][pos[1]] == None)
+            if not self.is_taken(row, col):
+                return (row, col)
 
-        return pos
+    def print_matrix(self):
+        for row_list in self.matrix:
+            for box in row_list:
+                if box is None:
+                    print("[  ]")
+                else:
+                    print(f"[ {box.get_id()}]")
 
+            print("\n")

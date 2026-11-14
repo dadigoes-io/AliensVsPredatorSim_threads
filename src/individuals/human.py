@@ -1,9 +1,8 @@
-from individual import Individual
+from .individual import Individual
 
 class Human (Individual):
 
     def __init__(self, id, pos, simulation):
-        super.__init__(id, pos, simulation)
-        self.id = ""
+        super().__init__(id, pos, simulation)
         self.resistance = 3
         self.strength = 2

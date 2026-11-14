@@ -1,7 +1,7 @@
-from individual import Individual
+from .individual import Individual
 from abc import ABC, abstractmethod
 
-class Alien (Individual,ABC):
+class Alien (Individual):
 
     @abstractmethod
     def __init__(self, id, pos, simulation):

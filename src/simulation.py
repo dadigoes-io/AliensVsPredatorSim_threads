@@ -13,8 +13,8 @@ class Simulation:
         self.next_human = 0
 
     def init(self):
-        self.add_queen_alien()
-        for _ in range(4):
+        self.gen_queen_alien()
+        for _ in range(2):
             self.gen_alien()
 
         for _ in range(5):
@@ -37,34 +37,47 @@ class Simulation:
 
         self.aliens[id] = AlienQueen(id,
                                      self.enviroment.get_random_empty_pos(),
-                                     self.simulation)
+                                     self)
 
-        self.enviroment.add_individual(self.aliens[id])
+        if self.enviroment.add_individual(self.aliens[id]):
+            self.next_alien += 1
+        else:
+            self.aliens.pop(id)
+        
 
     def gen_alien(self):
         id = f"A{self.next_alien:02d}"
         self.aliens[id] = AlienSoldier(id,
                                        self.enviroment.get_random_empty_pos(),
-                                       self.simulation)
+                                       self)
         
-        self.enviroment.add_individual(self.aliens[id])
+        if self.enviroment.add_individual(self.aliens[id]):
+            self.next_alien += 1
+        else:
+            self.aliens.pop(id)
 
     def gen_predator(self):
         id = f"P{self.next_predator:02d}"
         self.predators[id] = Predator(id,
                                       self.enviroment.get_random_empty_pos(),
-                                      self.simulation)
+                                      self)
 
-        self.enviroment.add_individual(self.predators[id])
+        if self.enviroment.add_individual(self.predators[id]):
+            self.next_predator += 1
+        else:
+            self.predator.pop(id)
 
     def gen_human(self):
-        id = f"P{self.next_human:02d}"
+        id = f"H{self.next_human:02d}"
         self.humans[id] = Human(id,
                                 self.enviroment.get_random_empty_pos(),
-                                self.simulation)
+                                self)
 
-        self.enviroment.add_individual(self.humans[id])
-
+        if self.enviroment.add_individual(self.humans[id]):
+            self.next_human += 1
+        else:
+            self.humans.pop(id)
+            
 def main():
     environment = Environment(75)
     simulation = Simulation(environment)
