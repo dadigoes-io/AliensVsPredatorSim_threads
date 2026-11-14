@@ -2,8 +2,8 @@ from individual import Individual
 
 class Predator (Individual):
 
-    def __init__(self, simulation):
-        super.__init__(simulation)
+    def __init__(self, id, pos, simulation):
+        super.__init__(id, pos, simulation)
         self.id = ""
         self.resistance = 20
         self.strength = 5
