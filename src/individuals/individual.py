@@ -10,4 +10,4 @@ class Individual (threading.Thread):
         self.alive = True
 
     def get_id(self):
-        return id;
+        return self.id;

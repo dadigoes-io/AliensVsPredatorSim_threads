@@ -34,10 +34,11 @@ class Environment():
 
     def print_matrix(self):
         for row_list in self.matrix:
+            str_out = ""
             for box in row_list:
                 if box is None:
-                    print("[  ]")
+                    str_out += "□ "
                 else:
-                    print(f"[ {box.get_id()}]")
+                    str_out += f"{box.get_id()[0]} "
 
-            print("\n")
+            print(str_out)

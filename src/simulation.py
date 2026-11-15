@@ -33,7 +33,7 @@ class Simulation:
         return self.enviroment
 
     def gen_queen_alien(self):
-        id = f"QA{self.next_alien:02d}"
+        id = f"QA{self.next_alien:01d}"
 
         self.aliens[id] = AlienQueen(id,
                                      self.enviroment.get_random_empty_pos(),
@@ -77,9 +77,12 @@ class Simulation:
             self.next_human += 1
         else:
             self.humans.pop(id)
-            
+
 def main():
-    environment = Environment(75)
+    environment = Environment(25)
     simulation = Simulation(environment)
     simulation.init()
+    simulation.get_environment().print_matrix()
     simulation.run()
+
+main()
