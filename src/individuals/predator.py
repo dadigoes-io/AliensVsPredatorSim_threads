@@ -6,3 +6,4 @@ class Predator (Individual):
         super().__init__(id, pos, simulation)
         self.resistance = 20
         self.strength = 5
+        self.sleep_time = 2

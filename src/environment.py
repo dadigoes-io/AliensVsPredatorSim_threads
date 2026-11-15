@@ -9,9 +9,14 @@ class Environment():
         self.matrix = [[None for _ in range(size)] for _ in range(size)]
         self.mutex_matrix = [[threading.Lock() for _ in range(size)] for _ in range(size)]
 
+    def get_size(self):
+        return self.size
+
+    def get_matrix(self):
+        return self.matrix
+
     def is_taken(self, row, column):
         return self.matrix[row][column] is not None
-
 
     # Hacer atomico get_random_empty_pos y add_individual
     def add_individual(self, ind):
@@ -22,6 +27,15 @@ class Environment():
 
         self.matrix[pos[0]][pos[1]] = ind
         return True
+
+    def update_individual_pos(self, indiv: Individual, old_pos):
+        if indiv.get_id is self.matrix[old_pos[0], old_pos[1]]:
+            self.matrix[old_pos[0], old_pos[1]] = None
+            new_pos = indiv.get_pos()
+            self.matrix[new_pos[0], new_pos[1]] = indiv
+            return True
+        else:
+            return False
 
     def get_random_empty_pos(self):
 
@@ -44,7 +58,7 @@ class Environment():
             str_out = ""
 
             for box in row_list:
-                
+
                 if box is None:
                     str_out += "□ "
 

@@ -1,12 +1,13 @@
 from environment import Environment
 from individuals import *
 import time
-import os
+import queue
 
 class Simulation:
 
     def __init__(self, enviroment: Environment):
         self.enviroment = enviroment
+        self.queue = queue.Queue()
         self.aliens = {}    # individual.id, individual
         self.predators = {}
         self.humans = {}
