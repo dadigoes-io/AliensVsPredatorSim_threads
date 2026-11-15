@@ -1,5 +1,7 @@
 from environment import Environment
 from individuals import *
+import time
+import os
 
 class Simulation:
 
@@ -11,23 +13,6 @@ class Simulation:
         self.next_alien = 0
         self.next_predator = 0
         self.next_human = 0
-
-    def init(self):
-        self.gen_queen_alien()
-        for _ in range(2):
-            self.gen_alien()
-
-        for _ in range(5):
-            self.gen_predator()
-
-        for _ in range(10):
-            self.gen_human()
-
-
-    def run(self):
-
-        while(1):
-            pass
 
     def get_environment(self):
         return self.enviroment
@@ -78,11 +63,28 @@ class Simulation:
         else:
             self.humans.pop(id)
 
+    def init(self):
+        self.gen_queen_alien()
+        for _ in range(2):
+            self.gen_alien()
+
+        for _ in range(5):
+            self.gen_predator()
+
+        for _ in range(10):
+            self.gen_human()
+
+
+    def run(self):
+        while True:
+            print("\033[H\033[J", end="", flush=True)
+            self.enviroment.print_matrix()
+            time.sleep(1)
+
 def main():
     environment = Environment(25)
     simulation = Simulation(environment)
     simulation.init()
-    simulation.get_environment().print_matrix()
     simulation.run()
 
 main()
