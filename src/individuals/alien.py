@@ -6,6 +6,7 @@ class Alien (Individual, ABC):
     @abstractmethod
     def __init__(self, id, pos, simulation):
         super().__init__(id, pos, simulation)
+        self.sleep_time = 1
 
 class AlienQueen (Alien):
 

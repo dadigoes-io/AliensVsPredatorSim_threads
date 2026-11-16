@@ -77,10 +77,18 @@ class Simulation:
 
 
     def run(self):
+
+        # Start threads execution
+        for individuals in (self.aliens, self.predators, self.humans):
+            for indiv in individuals.values():
+                indiv.start()
+
         while True:
             print("\033[H\033[J", end="", flush=True)
             self.enviroment.print_matrix()
-            time.sleep(1)
+            time.sleep(1)   # Sustituir por un count,
+                            # no es buena idea dormir
+                            # el hilo de ejecucion principal
 
 def main():
     environment = Environment(25)
