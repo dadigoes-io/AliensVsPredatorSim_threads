@@ -38,19 +38,24 @@ class Environment():
             # Release block
             lock.release()
 
-    def get_adyacents_individuals(self, pos):
-        ady_blocks = self._get_adyacents_blocks()
+    def get_adyacents_individuals(self, indiv_pos):
+        ady_pos_list = self._get_adyacents_positions(indiv_pos)
         ady_indivs = []
 
-        positions_to_lock = ady_blocks
+        positions_to_lock = ady_pos_list
         positions_to_lock.sort()
+
+        acquired_locks = []
 
         try:
             # Acquire locks
-            for lock in positions_to_lock:
+            for pos in positions_to_lock:
+                lock = self.mutex_matrix[pos[0]][pos[1]]
                 lock.acquire()
+                acquired_locks.append(lock)
 
-            for indiv in ady_blocks:
+            for pos in ady_pos_list:
+                indiv = self.matrix[pos[0]][pos[1]]
                 if indiv:
                     ady_indivs.append(indiv)
 
@@ -58,7 +63,7 @@ class Environment():
 
         finally:
             # Release locks
-            for lock in positions_to_lock:
+            for lock in acquired_locks:
                 lock.release()
 
 
@@ -73,8 +78,8 @@ class Environment():
         
         try:
 
-            # Get adyacents blocks
-            next_pos_list = self._get_adyacents_blocks(old_pos)
+            # Get adyacents pos
+            next_pos_list = self._get_adyacents_positions(old_pos)
 
             # Create sorted list of positions to lock to avoid deadlocks
             positions_to_lock = next_pos_list + [old_pos]
@@ -112,10 +117,15 @@ class Environment():
             for lock in adquired_locks:
                 lock.release()
 
-    def remove_individual(self, ind):
-        pos = ind.get_pos()
+    def remove_individual(self, indiv):
+        pos = indiv.get_pos()
         try:
             self.mutex_matrix[pos[0]][pos[1]].acquire()
+
+            # Check individual to remove is same in matrix
+            if self.matrix[pos[0]][pos[1]] is not indiv:
+                raise ValueError(f"Updated individual {indiv.get_id()} error")
+
             self.matrix[pos[0]][pos[1]] = None
         finally:
             self.mutex_matrix[pos[0]][pos[1]].release()
@@ -128,6 +138,14 @@ class Environment():
 
             if not self.is_taken((row, col)):
                 return (row, col)
+
+    def lock_positions(self, list_pos):
+        for pos in list_pos:
+            self.mutex_matrix[pos[0], pos[1]].acquire()
+
+    def unlock_positions(self, list_pos):
+        for pos in list_pos:
+            self.mutex_matrix[pos[0], pos[1]].release()
 
     def print_matrix(self):
 
@@ -184,12 +202,12 @@ class Environment():
             self.matrix[new_pos[0]][new_pos[1]] = indiv
             indiv.update_pos(new_pos)
 
-    def _get_adyacents_blocks(self, pos):
-        ady_blocks = []
+    def _get_adyacents_positions(self, pos):
+        ady_pos = []
         for aux_row in range(-1,2):
                         for aux_col in range(-1,2):
                             if not (aux_row == 0 and aux_col == 0):
                                 aux_pos = (pos[0] + aux_row, pos[1] + aux_col)
                                 if (aux_pos[0] in range(0, self.get_size())) and (aux_pos[1] in range(0, self.get_size())):
-                                    ady_blocks.append(aux_pos)
-        return ady_blocks
+                                    ady_pos.append(aux_pos)
+        return ady_pos

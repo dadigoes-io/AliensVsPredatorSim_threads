@@ -68,6 +68,9 @@ class Simulation:
         else:
             self.humans.pop(id)
 
+    def remove_individual(self, target):
+            pass    # Un remove para todos los indivs o un remove para cada indiv?
+
     def init(self):
         self.gen_queen_alien()
         for _ in range(2):
