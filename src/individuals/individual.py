@@ -31,4 +31,6 @@ class Individual (threading.Thread):
         return False
 
     def _move(self):
-        self.simulation.get_environment().move_individual(self)
+        self.simulation.get_environment().move_individual(self,
+                                                          self.simulation.get_game_over()
+                                                          )
