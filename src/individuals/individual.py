@@ -21,7 +21,7 @@ class Individual (threading.Thread, ABC):
     def get_resistance(self):
         return self.resistance
 
-    def get_alive(self):
+    def is_individual_alive(self):
         return self.alive
 
     def update_pos(self, new_pos):
@@ -44,18 +44,28 @@ class Individual (threading.Thread, ABC):
         # incluir remove_individual()?
 
     def _attack(self):
+
+        if self.simulation.get_game_over():
+            return False
+
+        if not self.is_individual_alive():
+            return False
+
+        environment = self.simulation.get_environment()
+
+        # Select target
+        target = environment.get_individual_target(self)
         
-        ady_indivs = self.simulation.get_environment().get_adyacents_individuals(self.pos)
+        # Attack target
+        self._combat(target)
 
-        if not ady_indivs:
-            return False
-
-        target : Individual = self._select_target(ady_indivs)
-
-        if target is None:
-            return False
-
-        self._combat(target)        
+        # Move over dead target
+        if not target.is_individual_alive():
+            if not self.environment.move_individual(self, target.get_pos(), self.simulation.get_game_over())
+                raise ValueError(f"Move individual {self.get_id()} error")
+            
+        # Release individuals
+        environment.unlock_positions([self, target])       
 
         return True
 
@@ -63,29 +73,20 @@ class Individual (threading.Thread, ABC):
 
         enviroment = self.simulation.get_environment()
 
-        enviroment.lock_positions([self.get_pos(), target.get_pos()])
-
+        # Damage over target
         target.receive_damage(self.strength)
-
         if not target.get_alive():
             enviroment.remove_individual(target)
             self.simulation.remove_individual(self)
 
         if isinstance(target, Alien):
-            self.receive_damage(1)
-
-        if not self.get_alive():
-            enviroment.remove_individual(self)
-            self.simulation.remove_individual(self)
-
-        else:
-            # Comprobar modularizacion o crear move para positions ya locked?
-            enviroment.move_individual(self, self.simulation.get_game_over())
-
-        enviroment.unlock_positions([self.get_pos(), target.get_pos()])
+            self.receive_damage(target.get_splatter_damage())
+            if not self.get_alive():
+                enviroment.remove_individual(self)
+                self.simulation.remove_individual(self)
 
     def _move(self):
-        self.simulation.get_environment().move_individual(self,
+        self.simulation.get_environment().move_individual_random(self,
                                                           self.simulation.get_game_over()
                                                           )
 

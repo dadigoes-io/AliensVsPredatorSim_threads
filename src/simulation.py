@@ -99,7 +99,7 @@ class Simulation:
 
             time.sleep(1)   # Sustituir por un count,
                             # no es buena idea dormir
-                            # el hilo de ejecucion principal
+                            # el hilo de ejecucion principal?
 
         if not self.aliens:
             print("Aliens eliminados")

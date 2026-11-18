@@ -18,11 +18,11 @@ class Predator (Individual):
             if isinstance(indiv, AlienQueen):
                 return indiv
 
-                if isinstance(indiv, AlienSoldier):
-                    aliens.append(indiv)
+            if isinstance(indiv, AlienSoldier):
+                aliens.append(indiv)
 
-                if isinstance(indiv, Human):
-                    humans.append(indiv)
+            if isinstance(indiv, Human):
+                humans.append(indiv)
 
             if aliens:
                 return min(aliens, key=lambda alien: alien.get_resistance())

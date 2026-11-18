@@ -38,7 +38,8 @@ class Environment():
             # Release block
             lock.release()
 
-    def get_adyacents_individuals(self, indiv_pos):
+    def get_individual_target(self, indiv : Individual):
+        indiv_pos = indiv.get_pos()
         ady_pos_list = self._get_adyacents_positions(indiv_pos)
         ady_indivs = []
 
@@ -49,25 +50,36 @@ class Environment():
 
         try:
             # Acquire locks
+            lock = self.mutex_matrix[indiv_pos[0]][indiv_pos[1]]
+            if not lock.acquire(blocking = False):
+                return False
+
             for pos in positions_to_lock:
                 lock = self.mutex_matrix[pos[0]][pos[1]]
                 lock.acquire()
                 acquired_locks.append(lock)
 
+            # Get adyacent targets
             for pos in ady_pos_list:
                 indiv = self.matrix[pos[0]][pos[1]]
                 if indiv:
                     ady_indivs.append(indiv)
 
-            return ady_indivs
+            target = indiv._select_target(ady_indivs)
+
+            if not target.is_individual_alive():
+                return None
+
+            acquired_locks.remove(target.get_pos())
+
+            return target
 
         finally:
-            # Release locks
+            # Release locks except indiv and target
             for lock in acquired_locks:
                 lock.release()
 
-
-    def move_individual(self, indiv: Individual, game_over):
+    def move_individual_random(self, indiv: Individual, game_over):
         if game_over:
             return False
         
@@ -77,22 +89,26 @@ class Environment():
         old_pos = indiv.get_pos()
         
         try:
-
             # Get adyacents pos
             next_pos_list = self._get_adyacents_positions(old_pos)
 
+            lock = self.mutex_matrix[old_pos[0]][old_pos[1]]
+            
+            if not lock.acquire(blocking = False):
+                return False
+
+            adquired_locks.append(lock)
+
             # Create sorted list of positions to lock to avoid deadlocks
-            positions_to_lock = next_pos_list + [old_pos]
+            positions_to_lock = next_pos_list
             positions_to_lock.sort()
             
             # Acquire all adyacents block
             for pos in positions_to_lock:
                 lock = self.mutex_matrix[pos[0]][pos[1]]
-              
-                if lock.acquire(blocking = (pos == old_pos)):
+                if lock.acquire(blocking = False):
                     adquired_locks.append(lock)
-
-                elif pos != old_pos:
+                else:
                     next_pos_list.remove(pos)
 
             if not next_pos_list:
@@ -117,6 +133,24 @@ class Environment():
             for lock in adquired_locks:
                 lock.release()
 
+    def move_individual(self, indiv: Individual, new_pos, game_over):
+        if game_over:
+            return False
+
+        old_pos = indiv.get_pos()
+
+        if not self.mutex_matrix[old_pos[0]][old_pos[1]].locked():
+            raise ValueError(f"Old individual {indiv.get_id()} not locked")
+            
+        if self.mutex_matrix[new_pos[0]][new_pos[1]].locked():
+            raise ValueError(f"New individual {indiv.get_id()} not locked")
+
+        self.matrix[old_pos[0]][old_pos[1]] = None
+        self.matrix[new_pos[0]][new_pos[1]] = indiv
+        
+        self._update_individual_pos(indiv, new_pos)
+        return True
+    
     def remove_individual(self, indiv):
         pos = indiv.get_pos()
         try:
