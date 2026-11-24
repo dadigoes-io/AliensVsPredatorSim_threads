@@ -16,6 +16,7 @@ class Simulation:
         self.aliens = {}    # individual.id, individual
         self.predators = {}
         self.humans = {}
+        self.queen_id = None
         self.next_alien = 0
         self.next_predator = 0
         self.next_human = 0
@@ -36,13 +37,13 @@ class Simulation:
         self.queue.put((query, queri_info))
 
     def gen_queen_alien(self):
-        id = f"QA{self.next_alien:01d}"
+        self.queen_id = f"QA{self.next_alien:01d}"
 
-        self.aliens[id] = AlienQueen(id,
+        self.aliens[id] = AlienQueen(self.queen_id,
                                      self.enviroment.get_random_empty_pos(),
                                      self)
 
-        if self.enviroment.add_individual(self.aliens[id], locked=False):
+        if self.enviroment.add_individual(self.aliens[self.queen_id ], locked=False):
             self.next_alien += 1
         else:
             self.aliens.pop(id)
@@ -87,15 +88,19 @@ class Simulation:
             self.humans.pop(id)
             return None
 
-    def hatch_alien_egg(self, pos):
+    def gen_alien_egg(self, pos):
 
         new_pos = self.enviroment.get_random_ady_pos(pos)
 
         if new_pos is None:
             return None
-
-        self.enviroment.unlock_positions([new_pos])
-        return self.gen_alien(new_pos)
+        
+        try:
+            return self.gen_alien(new_pos)
+        
+        finally:
+            # Release lock after generate new alien in gen_alien()
+            self.enviroment.get_mutex_matrix()[new_pos[0]][new_pos[1]].release()
     
     def init(self):
         self.gen_queen_alien()
@@ -145,6 +150,10 @@ class Simulation:
                     predator_timer = self.predator_gen_buffer[0]
                     self.event_buffer.append(f"Humano {predator_id} generado")
 
+            # Hatch alien eggs
+            if self.alien_eggs > 0:
+                self._hatch_alien_egg()
+
             # Check queries from queue
             if queue:
                 self.queue_queries()
@@ -176,8 +185,7 @@ class Simulation:
             thread.join()
 
     def queue_queries(self):
-        # not_hatched_eggs_querys = []
-        while self.queue:   # Se puede bloquear si huevo no eclosiona?
+        while self.queue:
             query_type, data = self.queue.get()
             match query_type:
                 case QueryType.ATTACK:
@@ -231,25 +239,32 @@ class Simulation:
                             self.event_buffer.append(f"Humano {human_id} generado")
 
                 case QueryType.HATCH_EGG:
-                    # data = alien_queen_id
-                    alien_queen = self.aliens.get(data)
+                    # data = None
+                    self.alien_eggs += 1
 
-                    if alien_queen.is_individual_alive():
+    def _hatch_alien_egg(self):
+        alien_queen = self.aliens.get(self.queen_id)
+        if alien_queen and alien_queen.is_individual_alive():
+            pos = alien_queen.get_pos()
+            try:
+                # Locking queen position to avoid her to move while hatching eggs
+                lock = self.enviroment.get_mutex_matrix()[pos[0]][pos[1]]
+                if lock.acquire(blocking=False):
 
-                        self.alien_eggs += 1
+                    # Attempting to generate new alien
+                    alien_id = self.gen_alien_egg(self.aliens.get(self.queen_id).get_pos())
 
-                        # Attempting to generate new alien
-                        alien_id = self.hatch_alien_egg(self.aliens.get(data).get_pos())
-                        if alien_id is not None:
-                            self.alien_eggs -= 1
-                            self.event_buffer.append(f"Ha eclosionado alien {alien_id}")
+                    if alien_id is not None:
 
-                            # Start new thread
-                            alien = self.aliens[alien_id]
-                            alien.start()
-                            self.threads.append(alien)
-                        else:
-                            pass
+                        self.alien_eggs -= 1
+                        self.event_buffer.append(f"Ha eclosionado alien {alien_id}")
+
+                        # Start new thread
+                        alien = self.aliens[alien_id]
+                        alien.start()
+                        self.threads.append(alien)
+            finally:
+                lock.release()
 
 def main():
     environment = Environment(50)
