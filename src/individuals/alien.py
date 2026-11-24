@@ -1,7 +1,6 @@
-from .individual import Individual
 from abc import ABC, abstractmethod
-from predator import Predator
-from human import Human
+from .individual import Individual
+from .individual_type import IndividualType
 
 class Alien (Individual, ABC):
 
@@ -9,17 +8,19 @@ class Alien (Individual, ABC):
     def __init__(self, id, pos, simulation):
         super().__init__(id, pos, simulation)
         self.sleep_time = 1
-        self.splatter_damage = 1
+
+    def get_splatter_damage(self):
+        return 1
 
     def _select_target(self, ady_indivs):
         predators = []
         humans = []
 
         for indiv in ady_indivs:
-            if isinstance(indiv, Predator):
+            if indiv.get_individual_type() == IndividualType.PREDATOR:
                 predators.append(indiv)
 
-            if isinstance(indiv, Human):
+            if indiv.get_individual_type() == IndividualType.HUMAN:
                 humans.append(indiv)
 
         if predators:
@@ -31,15 +32,13 @@ class Alien (Individual, ABC):
         else:
             return None
 
-    def get_splatter_damage(self):
-        return self.splatter_damage
-
 class AlienQueen (Alien):
 
     def __init__(self, id, pos, simulation):
         super().__init__(id, pos, simulation)
         self.resistance = 100
         self.strength = 15
+        self.individual_type = IndividualType.ALIEN_QUEEN
 
 class AlienSoldier (Alien):
 
@@ -47,3 +46,4 @@ class AlienSoldier (Alien):
         super().__init__(id, pos, simulation)
         self.resistance = 5
         self.strength = 4
+        self.individual_type = IndividualType.ALIEN_SOLDIER

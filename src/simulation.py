@@ -14,6 +14,7 @@ class Simulation:
         self.next_alien = 0
         self.next_predator = 0
         self.next_human = 0
+        self.init_num_predators = 3
         self.game_over = False
 
     def get_environment(self):
@@ -73,13 +74,13 @@ class Simulation:
 
     def init(self):
         self.gen_queen_alien()
-        for _ in range(2):
+        for _ in range((self.init_num_predators * 5) - 1):
             self.gen_alien()
 
-        for _ in range(5):
+        for _ in range(self.init_num_predators):
             self.gen_predator()
 
-        for _ in range(10):
+        for _ in range(self.init_num_predators * 10):
             self.gen_human()
 
 
@@ -108,7 +109,7 @@ class Simulation:
             print("Predators eliminados")
 
 def main():
-    environment = Environment(25)
+    environment = Environment(50)
     simulation = Simulation(environment)
     simulation.init()
     simulation.run()

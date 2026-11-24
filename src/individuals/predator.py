@@ -1,6 +1,5 @@
 from .individual import Individual
-from alien import AlienQueen, AlienSoldier
-from human import Human
+from .individual_type import IndividualType
 
 class Predator (Individual):
 
@@ -9,26 +8,27 @@ class Predator (Individual):
         self.resistance = 20
         self.strength = 5
         self.sleep_time = 2
+        self.individual_type = IndividualType.PREDATOR
 
     def _select_target(self, ady_indivs):
         aliens = []
         humans = []
             
         for indiv in ady_indivs:
-            if isinstance(indiv, AlienQueen):
+            if indiv.get_individual_type() == IndividualType.ALIEN_QUEEN:
                 return indiv
 
-            if isinstance(indiv, AlienSoldier):
+            if indiv.get_individual_type() == IndividualType.ALIEN_SOLDIER:
                 aliens.append(indiv)
 
-            if isinstance(indiv, Human):
+            if indiv.get_individual_type() == IndividualType.HUMAN:
                 humans.append(indiv)
 
-            if aliens:
-                return min(aliens, key=lambda alien: alien.get_resistance())
+        if aliens:
+            return min(aliens, key=lambda alien: alien.get_resistance())
 
-            elif humans:
-                return min(humans, key=lambda human: human.get_resistance())
-                
-            else:
-                return None
+        elif humans:
+            return min(humans, key=lambda human: human.get_resistance())
+            
+        else:
+            return None
