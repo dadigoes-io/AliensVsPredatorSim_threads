@@ -1,6 +1,7 @@
 import threading
 import time
 from abc import ABC, abstractmethod
+from query_type import QueryType
 
 class Individual (threading.Thread, ABC):
 
@@ -31,7 +32,7 @@ class Individual (threading.Thread, ABC):
 
     def run(self):
 
-        while (self.alive):
+        while (self.alive and not self.simulation.get_game_over()):
             if not self.simulation.get_environment().is_locked(self.get_pos()):
                 if (not self._attack()):
                     self._move()
@@ -69,6 +70,7 @@ class Individual (threading.Thread, ABC):
             
             # Attack target
             self._combat(target)
+            self.simulation.add_query(QueryType.ATTACK, (self.get_id(), target.get_id(), target.get_pos()))
 
             # Move over target pos if self is alive and target is dead
             if not target.is_individual_alive() and self.is_individual_alive():
@@ -91,13 +93,15 @@ class Individual (threading.Thread, ABC):
         target._receive_damage(self.strength)
         if not target.is_individual_alive():
             environment.remove_individual_locked(target)
-            self.simulation.remove_individual(target)
+            self.simulation.add_query(QueryType.DEATH, (self.get_id(),  target.get_id(), target.get_pos(), target.get_individual_type(), False))
+
 
         
         self._receive_damage(target.get_splatter_damage())
         if not self.is_individual_alive():  # Because of splatter damage
             environment.remove_individual_locked(self)
-            self.simulation.remove_individual(self)
+            self.simulation.add_query(QueryType.DEATH, (target.get_id(),  self.get_id(), self.get_pos(), self.get_individual_type(), True))
+
 
     def _receive_damage(self, damage):
         self.resistance -= damage

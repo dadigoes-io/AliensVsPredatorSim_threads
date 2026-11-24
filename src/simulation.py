@@ -1,7 +1,11 @@
 from environment import Environment
+from query_type import QueryType
 from individuals import *
+from individuals.individual_type import IndividualType
 import time
 import queue
+from collections import deque
+
 
 class Simulation:
 
@@ -15,6 +19,10 @@ class Simulation:
         self.next_predator = 0
         self.next_human = 0
         self.init_num_predators = 3
+        self.alien_eggs = 0
+        self.event_buffer = deque(maxlen=15)
+        self.timer = time.monotonic()
+        self.predator_gen_buffer = deque()
         self.game_over = False
 
     def get_environment(self):
@@ -23,6 +31,9 @@ class Simulation:
     def get_game_over(self):
         return self.game_over
 
+    def add_query(self, query, queri_info):
+        self.queue.put((query, queri_info))
+
     def gen_queen_alien(self):
         id = f"QA{self.next_alien:01d}"
 
@@ -30,22 +41,25 @@ class Simulation:
                                      self.enviroment.get_random_empty_pos(),
                                      self)
 
-        if self.enviroment.add_individual(self.aliens[id]):
+        if self.enviroment.add_individual(self.aliens[id], locked=False):
             self.next_alien += 1
         else:
             self.aliens.pop(id)
         
 
-    def gen_alien(self):
+    def gen_alien(self, pos):
+        pos_locked = pos is not None
+        if pos is None:
+            pos = self.enviroment.get_random_empty_pos()
+
         id = f"A{self.next_alien:02d}"
-        self.aliens[id] = AlienSoldier(id,
-                                       self.enviroment.get_random_empty_pos(),
-                                       self)
-        
-        if self.enviroment.add_individual(self.aliens[id]):
+        self.aliens[id] = AlienSoldier(id, pos, self)
+        if self.enviroment.add_individual(self.aliens[id], locked=pos_locked):
             self.next_alien += 1
+            return id
         else:
             self.aliens.pop(id)
+            return None
 
     def gen_predator(self):
         id = f"P{self.next_predator:02d}"
@@ -53,7 +67,7 @@ class Simulation:
                                       self.enviroment.get_random_empty_pos(),
                                       self)
 
-        if self.enviroment.add_individual(self.predators[id]):
+        if self.enviroment.add_individual(self.predators[id], locked=False):
             self.next_predator += 1
         else:
             self.predators.pop(id)
@@ -64,7 +78,7 @@ class Simulation:
                                 self.enviroment.get_random_empty_pos(),
                                 self)
 
-        if self.enviroment.add_individual(self.humans[id]):
+        if self.enviroment.add_individual(self.humans[id], locked=False):
             self.next_human += 1
         else:
             self.humans.pop(id)
@@ -72,17 +86,36 @@ class Simulation:
     def remove_individual(self, target):
             pass    # Un remove para todos los indivs o un remove para cada indiv?
 
+    
+    def hatch_alien_egg(self, pos):
+        
+        try:
+            new_pos = self.enviroment.get_random_ady_pos(pos)
+
+            if new_pos is None:
+                return None
+            
+            return self.gen_alien(new_pos)
+    
+        finally:
+            self.enviroment.unlock_positions([new_pos])
+
     def init(self):
         self.gen_queen_alien()
         for _ in range((self.init_num_predators * 5) - 1):
-            self.gen_alien()
+            generated = self.gen_alien(None) is not None
+            while not generated:
+                generated = self.gen_alien(None)
 
         for _ in range(self.init_num_predators):
-            self.gen_predator()
+            generated = self.gen_predator() is not None
+            while not generated:
+                generated = self.gen_predator()
 
         for _ in range(self.init_num_predators * 10):
-            self.gen_human()
-
+            generated = self.gen_human() is not None
+            while not generated:
+                generated = self.gen_human()
 
     def run(self):
 
@@ -92,21 +125,86 @@ class Simulation:
                 indiv.start()
 
         while not self.game_over:
-            print("\033[H\033[J", end="", flush=True)
-            self.enviroment.print_matrix()
+
+            # Gen predators
+            predator_timer = self.predator_gen_buffer[0] 
+            while (predator_timer > 5):
+                if time.monotonic() - self.predator_gen > 5:
+                    self.gen_predator()
+                self.predator_gen_buffer.pop()
+                predator_timer = self.predator_gen_buffer[0] 
+
+            # Check queries from queue
+            if not queue.Empty:
+                queue_queries()
+
+            # Prints
+            if time.monotonic() - self.timer >= 1:
+                # Print matrix
+                print("\033[H\033[J", end="", flush=True)
+                self.enviroment.print_matrix()
+                # Print buffer
+                for event in self.event_buffer:
+                    print(event)
 
             if (not self.aliens or not self.predators):
                 self.game_over = True
-
-            time.sleep(1)   # Sustituir por un count,
-                            # no es buena idea dormir
-                            # el hilo de ejecucion principal?
 
         if not self.aliens:
             print("Aliens eliminados")
 
         if not self.predators:
             print("Predators eliminados")
+
+def queue_queries(self):
+        query_type, data = self.queue.get()
+        match query_type:
+            case QueryType.ATTACK:
+                # data = attacker.id, target.id, target.pos
+                attacker_id = data[0]
+                target_id = data[1]
+                target_pos = data[2]
+                self.event_buffer.append(f"{attacker_id} ha atacado a {target_id} en {target_pos}")
+
+                # Añadir mensaje a buffer
+
+            case QueryType.DEATH:
+                # data = attacker.id, target.id, target.pos, target.type, splatter_death
+                attacker_id = data[0]
+                target_id = data[1]
+                target_pos = data[2]
+                target_type = data[3]
+                splatter_death = data[4]
+                if splatter_death:
+                    self.event_buffer.append(f"{attacker_id} ha matado a {target_id} en {target_pos}")
+                else:
+                    self.event_buffer.append(f"{target_id} ha muerto por el ácido de {attacker_id} en {target_pos}")
+                # Eliminar hilo del target y generacion de nuevo predator o human
+
+                match target_type:
+                    case IndividualType.ALIEN_QUEEN:
+                        self.alien_eggs = 0
+                        self.aliens.pop(target_id)
+
+                    case IndividualType.ALIEN_SOLDIER:
+                        self.aliens.pop(target_id)
+
+                    case IndividualType.PREDATOR:
+                        self.predators.pop(target_id)
+                        self.predator_gen_queue.add(time.monotonic())
+
+                    case IndividualType.HUMAN:
+                        self.humans.pop(target_id)
+
+            case QueryType.HATCH_EGG:
+                # data = alien_queen_id
+                alien_queen = self.aliens.get(data)
+                if alien_queen.is_individual_alive():
+                    self.alien_eggs += 1
+                    new_alien_id = self.hatch_alien_egg(self.aliens.get(data).get_pos())
+                    if new_alien_id is not None:
+                        self.alien_eggs -= 1
+                        self.event_buffer.append(f"Ha eclosionado alien {new_alien_id}")
 
 def main():
     environment = Environment(50)

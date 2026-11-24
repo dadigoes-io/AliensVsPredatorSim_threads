@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from .individual import Individual
 from .individual_type import IndividualType
+from query_type import QueryType
+import time
 
 class Alien (Individual, ABC):
 
@@ -39,6 +41,13 @@ class AlienQueen (Alien):
         self.resistance = 100
         self.strength = 15
         self.individual_type = IndividualType.ALIEN_QUEEN
+        self.egg_timer = time.monotonic()
+
+    def incubate_eggs(self):
+        if (time.monotonic() - self.egg_timer) >= 30:
+            self.simulation.add_query(QueryType.HATCH_EGG, self.get_id())
+            self.egg_timer = time.monotonic()
+
 
 class AlienSoldier (Alien):
 
