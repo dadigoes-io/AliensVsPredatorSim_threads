@@ -48,7 +48,7 @@ class Environment():
             if self.is_taken(pos):
                 return False
 
-            if not self.get_mutex_matrix()[pos[0]][pos[1]].locked():
+            if not self.get_mutex_matrix[pos[0]][pos[1]].locked():
                 return False
                 
             self.matrix[pos[0]][pos[1]] = ind
@@ -94,7 +94,7 @@ class Environment():
                 return False
             
             target_pos = target.get_pos()
-            acquired_locks.remove(self.get_mutex_matrix()[target_pos[0]][target_pos[1]])
+            acquired_locks.remove(self.mutex_matrix[target_pos[0]][target_pos[1]])
             target_found = True
 
             return target
@@ -213,7 +213,7 @@ class Environment():
             
             # Acquire all adyacents locks
             for pos in new_pos_list:
-                lock = self.mutex_matrix()[pos[0]][pos[1]]
+                lock = self.mutex_matrix[pos[0]][pos[1]]
                 if lock.acquire(blocking = False):
                     acquired_locks.append(lock)
                     acquired_pos.append(pos)

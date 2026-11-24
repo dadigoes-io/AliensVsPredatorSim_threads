@@ -1,5 +1,6 @@
 import threading
 import time
+from .individual_type import IndividualType
 from abc import ABC, abstractmethod
 from query_type import QueryType
 
@@ -37,6 +38,9 @@ class Individual (threading.Thread, ABC):
                 if (not self._attack()):
                     self._move()
 
+                if self.get_individual_type is IndividualType.AienQueen:
+                    self._incubate_eggs()
+
             time.sleep(self.sleep_time)
 
     def get_splatter_damage(self):
@@ -70,7 +74,6 @@ class Individual (threading.Thread, ABC):
             
             # Attack target
             self._combat(target)
-            self.simulation.add_query(QueryType.ATTACK, (self.get_id(), target.get_id(), target.get_pos()))
 
             # Move over target pos if self is alive and target is dead
             if not target.is_individual_alive() and self.is_individual_alive():
@@ -91,12 +94,12 @@ class Individual (threading.Thread, ABC):
 
         # Damage over target
         target._receive_damage(self.strength)
-        if not target.is_individual_alive():
+        if target.is_individual_alive():
+            self.simulation.add_query(QueryType.ATTACK, (self.get_id(), target.get_id(), target.get_pos()))
+        else:
             environment.remove_individual_locked(target)
             self.simulation.add_query(QueryType.DEATH, (self.get_id(),  target.get_id(), target.get_pos(), target.get_individual_type(), False))
 
-
-        
         self._receive_damage(target.get_splatter_damage())
         if not self.is_individual_alive():  # Because of splatter damage
             environment.remove_individual_locked(self)
@@ -118,5 +121,9 @@ class Individual (threading.Thread, ABC):
     
     @abstractmethod
     def _select_target(self, ady_indivs):
+        pass
+
+    @abstractmethod   
+    def _incubate_eggs(self):
         pass
             
