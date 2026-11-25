@@ -197,12 +197,21 @@ class Environment():
 
     def get_random_empty_pos(self):
 
-        while True:
-            row = random.randrange(self.size)
-            col = random.randrange(self.size)
+        shuffle_matrix_pos = [
+            (i,j)
+            for i in range(self.size)
+            for j in range(self.size)
+        ]
+        random.shuffle(shuffle_matrix_pos)
+        
+        for pos in shuffle_matrix_pos:
+            if self.mutex_matrix[pos[0]][pos[1]].acquire():
+                if not self.is_taken(pos):
+                    return pos
+                else:
+                    self.mutex_matrix[pos[0]][pos[1]].release()
 
-            if not self.is_taken((row, col)):
-                return (row, col)
+        return None
 
     def get_random_ady_pos(self, gen_pos):
         # For alien eggs

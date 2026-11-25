@@ -37,57 +37,80 @@ class Simulation:
         self.queue.put((query, queri_info))
 
     def gen_alien_queen(self):
-        self.queen_id = f"QA{self.next_alien:01d}"
+        
+        pos = self.enviroment.get_random_empty_pos()
 
-        self.aliens[self.queen_id] = AlienQueen(self.queen_id,
-                                     self.enviroment.get_random_empty_pos(),
-                                     self)
+        if pos is None:
+            return None
 
-        if self.enviroment.add_individual(self.aliens[self.queen_id], locked=False):
-            self.next_alien += 1
-        else:
-            self.aliens.pop(self.queen_id)
-            self.queen_id = None
+        try:
+            self.queen_id = f"QA{self.next_alien:01d}"
+            self.aliens[self.queen_id] = AlienQueen(self.queen_id, pos, self)
+
+            if self.enviroment.add_individual(self.aliens[self.queen_id], locked=True):
+                self.next_alien += 1
+            else:
+                self.aliens.pop(self.queen_id)
+                self.queen_id = None
+        finally:
+            self.enviroment.get_mutex_matrix()[pos[0]][pos[1]].release()
         
     def gen_alien(self, pos):
-        pos_locked = pos is not None
+        # pos can have a value generated from _gen_alien_egg()
         if pos is None:
             pos = self.enviroment.get_random_empty_pos()
-
-        id = f"A{self.next_alien:02d}"
-        self.aliens[id] = AlienSoldier(id, pos, self)
-        if self.enviroment.add_individual(self.aliens[id], locked=pos_locked):
-            self.next_alien += 1
-            return id
-        else:
-            self.aliens.pop(id)
-            return None
+            if pos is None:
+                return None
+        
+        try:
+            id = f"A{self.next_alien:02d}"
+            self.aliens[id] = AlienSoldier(id, pos, self)
+            if self.enviroment.add_individual(self.aliens[id], locked=True):
+                self.next_alien += 1
+                return id
+            else:
+                self.aliens.pop(id)
+                return None
+        finally:
+            self.enviroment.get_mutex_matrix()[pos[0]][pos[1]].release()
 
     def gen_predator(self):
-        id = f"P{self.next_predator:02d}"
-        self.predators[id] = Predator(id,
-                                      self.enviroment.get_random_empty_pos(),
-                                      self)
-
-        if self.enviroment.add_individual(self.predators[id], locked=False):
-            self.next_predator += 1
-            return id
-        else:
-            self.predators.pop(id)
+    
+        pos = self.enviroment.get_random_empty_pos()
+        
+        if pos is None:
             return None
+        try:
+            id = f"P{self.next_predator:02d}"
+            self.predators[id] = Predator(id, pos, self)
+
+            if self.enviroment.add_individual(self.predators[id], locked=True):
+                self.next_predator += 1
+                return id
+            else:
+                self.predators.pop(id)
+                return None
+        finally:
+            self.enviroment.get_mutex_matrix()[pos[0]][pos[1]].release()
 
     def gen_human(self):
-        id = f"H{self.next_human:02d}"
-        self.humans[id] = Human(id,
-                                self.enviroment.get_random_empty_pos(),
-                                self)
 
-        if self.enviroment.add_individual(self.humans[id], locked=False):
-            self.next_human += 1
-            return id
-        else:
-            self.humans.pop(id)
+        pos = self.enviroment.get_random_empty_pos()
+        
+        if pos is None:
             return None
+        try:
+            id = f"H{self.next_human:02d}"
+            self.humans[id] = Human(id, pos, self)
+
+            if self.enviroment.add_individual(self.humans[id], locked=True):
+                self.next_human += 1
+                return id
+            else:
+                self.humans.pop(id)
+                return None
+        finally:
+            self.enviroment.get_mutex_matrix()[pos[0]][pos[1]].release()
 
     def gen_alien_egg(self, pos):
 
@@ -96,13 +119,8 @@ class Simulation:
         if new_pos is None:
             return None
         
-        try:
-            return self.gen_alien(new_pos)
-        
-        finally:
-            # Release lock after generate new alien in gen_alien()
-            self.enviroment.get_mutex_matrix()[new_pos[0]][new_pos[1]].release()
-    
+        return self.gen_alien(new_pos)
+          
     def queue_queries(self):
 
         while not self.queue.empty():
