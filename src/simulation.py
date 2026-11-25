@@ -168,15 +168,15 @@ class Simulation:
 
                             # Generate new human
                             human_id = self.gen_human()
-                            while human_id is None:
-                                human_id = self.gen_human()
+                            if human_id is not None:
+                                # Start new thread
+                                human = self.humans[human_id]
+                                human.start()
+                                self.threads.append(human)
 
-                            # Start new thread
-                            human = self.humans[human_id]
-                            human.start()
-                            self.threads.append(human)
-
-                            self.event_buffer.append(f"Humano {human_id} generado")
+                                self.event_buffer.append(f"Humano {human_id} generado")
+                            else:
+                                self.event_buffer.append("ERROR: No space for generating human")
 
                 case QueryType.HATCH_EGG:
                     # data = None
@@ -217,27 +217,25 @@ class Simulation:
     def init(self):
 
         # Generate AlienQueen
-        self.gen_alien_queen()
-        while self.queen_id is None:
-            self.gen_alien_queen()
+        if self.gen_alien_queen() is None:
+            return False
 
         # Generate AlienSoldiers
         for _ in range((self.init_num_predators * 5) - 1):
-            generated = self.gen_alien(None) is not None
-            while not generated:
-                generated = self.gen_alien(None)
+            if self.gen_alien(None) is None:
+                return False
 
         # Generate Predators
         for _ in range(self.init_num_predators):
-            generated = self.gen_predator() is not None
-            while not generated:
-                generated = self.gen_predator()
+            if self.gen_predator() is None:
+                return False
 
         # Generate Humans
         for _ in range(self.init_num_predators * 10):
-            generated = self.gen_human() is not None
-            while not generated:
-                generated = self.gen_human()
+            if self.gen_human() is None:
+                return False
+
+        return True
 
     def run(self):
 
@@ -261,15 +259,15 @@ class Simulation:
 
                         # Generate new predator
                         predator_id = self.gen_predator()
-                        while predator_id is None:
-                            predator_id = self.gen_predator()
+                        if predator_id is not None:
+                            # Start new thread
+                            predator = self.predators[predator_id]
+                            predator.start()
+                            self.threads.append(predator)
 
-                        # Start new thread
-                        predator = self.predators[predator_id]
-                        predator.start()
-                        self.threads.append(predator)
-
-                        self.event_buffer.append(f"Humano {predator_id} generado")
+                            self.event_buffer.append(f"Humano {predator_id} generado")
+                        else:
+                            self.event_buffer.append("ERROR: No space for generating predator")
 
                         # Remove predator timer
                         self.predator_gen_buffer.popleft()
@@ -311,7 +309,9 @@ class Simulation:
 def main():
     environment = Environment(50)
     simulation = Simulation(environment)
-    simulation.init()
-    simulation.run()
+    if simulation.init():
+        simulation.run()
+    else:
+        print("ERROR: Initial individual generation size is over max size")
 
 main()
