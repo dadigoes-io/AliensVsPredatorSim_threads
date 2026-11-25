@@ -2,9 +2,10 @@ from environment import Environment
 from query_type import QueryType
 from individuals import *
 from individuals.individual_type import IndividualType
+from collections import deque
 import time
 import queue
-from collections import deque
+import os
 
 
 class Simulation:
@@ -113,13 +114,14 @@ class Simulation:
             # Prints
             if time.monotonic() - self.timer >= 1:
                 # Print matrix
-                print("\033[H\033[J", end="", flush=True)
+                os.system("clear")
                 self.enviroment.print_matrix()
                 # Print buffer
                 for event in self.event_buffer:
                     print(event)
 
                 self.timer = time.monotonic()
+                self._update_alive_threads_list()
 
             # Avoid busy waiting
             time.sleep(0.01)

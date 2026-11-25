@@ -89,7 +89,9 @@ class Environment():
         lock = self.mutex_matrix[pos[0]][pos[1]]
 
         # Acquire block
-        lock.acquire()
+        if not lock.acquire(blocking=False):
+            return False
+        
         try:    
             if self.is_taken(pos):
                 return False
