@@ -42,9 +42,6 @@ class Individual (threading.Thread, ABC):
 
             time.sleep(self.sleep_time)
 
-    def get_splatter_damage(self):
-        return 0
-
     def _attack(self):
 
         old_pos = self.pos
@@ -104,7 +101,6 @@ class Individual (threading.Thread, ABC):
             environment.remove_individual_locked(self)
             self.simulation.add_query(QueryType.DEATH, (target.get_id(),  self.get_id(), self.get_pos(), self.get_individual_type(), True))
 
-
     def _receive_damage(self, damage):
         self.resistance -= damage
 
@@ -117,6 +113,9 @@ class Individual (threading.Thread, ABC):
             return False
         
         self.simulation.get_environment().move_individual_random(self)
+
+    def get_splatter_damage(self):
+        return 0
     
     @abstractmethod
     def _select_target(self, ady_indivs):

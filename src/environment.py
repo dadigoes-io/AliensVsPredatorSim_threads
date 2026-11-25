@@ -21,7 +21,65 @@ class Environment():
     def is_taken(self, pos):
         return self.matrix[pos[0]][pos[1]] is not None
 
-    # Hacer atomico get_random_empty_pos y add_individual
+    def is_locked(self, pos):
+        return self.mutex_matrix[pos[0]][pos[1]].locked()
+
+    def get_random_empty_pos(self):
+
+        shuffle_matrix_pos = [
+            (i,j)
+            for i in range(self.size)
+            for j in range(self.size)
+        ]
+        random.shuffle(shuffle_matrix_pos)
+        
+        for pos in shuffle_matrix_pos:
+            if self.mutex_matrix[pos[0]][pos[1]].acquire(blocking=False):
+                if not self.is_taken(pos):
+                    return pos
+                else:
+                    self.mutex_matrix[pos[0]][pos[1]].release()
+
+        return None
+
+    def get_random_ady_pos(self, gen_pos):
+        # For alien eggs
+
+        new_pos_list = []
+        acquired_pos = []
+        acquired_locks = []    
+        
+        try:
+            # Get adyacents pos
+            new_pos_list = self._get_adyacents_positions(gen_pos)
+            
+            # Acquire all adyacents locks
+            for pos in new_pos_list:
+                lock = self.mutex_matrix[pos[0]][pos[1]]
+                if lock.acquire(blocking = False):
+                    acquired_locks.append(lock)
+                    acquired_pos.append(pos)
+
+            if not acquired_pos:
+                return None
+
+            new_pos = random.choice(acquired_pos)
+            while(self.is_taken(new_pos)):
+                acquired_pos.remove(new_pos)
+                if len(acquired_pos) == 0:
+                    return None
+                new_pos = random.choice(acquired_pos)
+
+            # Remove lock from acquired_locks to keep it locked for generate new alien
+            acquired_locks.remove(self.mutex_matrix[new_pos[0]][new_pos[1]])
+
+            return new_pos
+
+        finally:
+            # Release all adyacents blocks
+            for lock in acquired_locks:
+                lock.release()
+
     def add_individual(self, ind, locked):
         # If pos is prev locked (from hatching egg)
         if locked:
@@ -53,6 +111,19 @@ class Environment():
                 
             self.matrix[pos[0]][pos[1]] = ind
             return True 
+
+    def remove_individual_locked(self, indiv):
+        pos = indiv.get_pos()
+        # Pos suposed to be previously locked
+
+        if not self.mutex_matrix[pos[0]][pos[1]].locked():
+            raise ValueError(f"Removed individual {indiv.get_id()} not locked")
+
+        # Check individual to remove is same in matrix
+        if self.matrix[pos[0]][pos[1]] is not indiv:
+            raise ValueError(f"Updated individual {indiv.get_id()} error")
+
+        self.matrix[pos[0]][pos[1]] = None
 
     def get_individual_target(self, indiv : Individual):
         indiv_pos = indiv.get_pos()
@@ -182,85 +253,32 @@ class Environment():
         
         return self._update_individual_pos_locked(indiv, new_pos)
 
-    def remove_individual_locked(self, indiv):
-        pos = indiv.get_pos()
-        # Pos suposed to be previously locked
+    def _update_individual_pos_locked(self, indiv: Individual, new_pos):
+        # Both positions are suposed to be locked previously
+        old_pos = indiv.get_pos()
 
-        if not self.mutex_matrix[pos[0]][pos[1]].locked():
-            raise ValueError(f"Removed individual {indiv.get_id()} not locked")
-
-        # Check individual to remove is same in matrix
-        if self.matrix[pos[0]][pos[1]] is not indiv:
-            raise ValueError(f"Updated individual {indiv.get_id()} error")
-
-        self.matrix[pos[0]][pos[1]] = None
-
-    def get_random_empty_pos(self):
-
-        shuffle_matrix_pos = [
-            (i,j)
-            for i in range(self.size)
-            for j in range(self.size)
-        ]
-        random.shuffle(shuffle_matrix_pos)
+        if not self.mutex_matrix[old_pos[0]][old_pos[1]].locked():
+            return False
         
-        for pos in shuffle_matrix_pos:
-            if self.mutex_matrix[pos[0]][pos[1]].acquire():
-                if not self.is_taken(pos):
-                    return pos
-                else:
-                    self.mutex_matrix[pos[0]][pos[1]].release()
+        if not self.mutex_matrix[new_pos[0]][new_pos[1]].locked():
+            return False
 
-        return None
+        # Check individual is same in matrix
+        if self.matrix[old_pos[0]][old_pos[1]] is not indiv:
+            raise ValueError(f"Updated checking individual {indiv.get_id()} error")
 
-    def get_random_ady_pos(self, gen_pos):
-        # For alien eggs
-
-        new_pos_list = []
-        acquired_pos = []
-        acquired_locks = []    
+        # Check new position is None
+        if self.matrix[new_pos[0]][new_pos[1]] is not None:
+            raise ValueError(f"Checking new pos for individual {indiv.get_id()} error")
         
-        try:
-            # Get adyacents pos
-            new_pos_list = self._get_adyacents_positions(gen_pos)
-            
-            # Acquire all adyacents locks
-            for pos in new_pos_list:
-                lock = self.mutex_matrix[pos[0]][pos[1]]
-                if lock.acquire(blocking = False):
-                    acquired_locks.append(lock)
-                    acquired_pos.append(pos)
-
-            if not acquired_pos:
-                return None
-
-            new_pos = random.choice(acquired_pos)
-            while(self.is_taken(new_pos)):
-                acquired_pos.remove(new_pos)
-                if len(acquired_pos) == 0:
-                    return None
-                new_pos = random.choice(acquired_pos)
-
-            # Remove lock from acquired_locks to keep it locked for generate new alien
-            acquired_locks.remove(self.mutex_matrix[new_pos[0]][new_pos[1]])
-
-            return new_pos
-
-        finally:
-            # Release all adyacents blocks
-            for lock in acquired_locks:
-                lock.release()
-
-    def lock_positions(self, list_pos):
-        for pos in list_pos:
-            self.mutex_matrix[pos[0]][pos[1]].acquire()
-
+        self.matrix[old_pos[0]][old_pos[1]] = None
+        self.matrix[new_pos[0]][new_pos[1]] = indiv
+        indiv.update_pos(new_pos)
+        return True
+ 
     def unlock_positions(self, list_pos):
         for pos in list_pos:
             self.mutex_matrix[pos[0]][pos[1]].release()
-
-    def is_locked(self, pos):
-        return self.mutex_matrix[pos[0]][pos[1]].locked()
 
     def print_matrix(self):
 
@@ -294,30 +312,7 @@ class Environment():
                             str_out += f"{BLUE}{indiv}{RESET} "
 
             print(str_out)
-
-    def _update_individual_pos_locked(self, indiv: Individual, new_pos):
-        # Both positions are suposed to be locked previously
-        old_pos = indiv.get_pos()
-
-        if not self.mutex_matrix[old_pos[0]][old_pos[1]].locked():
-            return False
-        
-        if not self.mutex_matrix[new_pos[0]][new_pos[1]].locked():
-            return False
-
-        # Check individual is same in matrix
-        if self.matrix[old_pos[0]][old_pos[1]] is not indiv:
-            raise ValueError(f"Updated checking individual {indiv.get_id()} error")
-
-        # Check new position is None
-        if self.matrix[new_pos[0]][new_pos[1]] is not None:
-            raise ValueError(f"Checking new pos for individual {indiv.get_id()} error")
-        
-        self.matrix[old_pos[0]][old_pos[1]] = None
-        self.matrix[new_pos[0]][new_pos[1]] = indiv
-        indiv.update_pos(new_pos)
-        return True
-                
+          
     def _get_adyacents_positions(self, pos):
         ady_pos = []
         for aux_row in range(-1,2):
