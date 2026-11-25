@@ -48,7 +48,7 @@ class Environment():
             if self.is_taken(pos):
                 return False
 
-            if not self.get_mutex_matrix[pos[0]][pos[1]].locked():
+            if not self.mutex_matrix[pos[0]][pos[1]].locked():
                 return False
                 
             self.matrix[pos[0]][pos[1]] = ind
@@ -69,6 +69,10 @@ class Environment():
             if not indiv_lock.acquire(blocking = False):
                 return False
             indiv_locked = True
+
+            # Check if still alive after get lock
+            if not indiv.is_individual_alive():
+                return False
 
             # Checking if same individual in matrix
             if not self.matrix[indiv_pos[0]][indiv_pos[1]] is indiv:
@@ -228,8 +232,8 @@ class Environment():
                     return None
                 new_pos = random.choice(acquired_pos)
 
-            # Keep lock for generate new alien
-            acquired_locks.remove(self.get_mutex_matrix[new_pos[0]][new_pos[1]])
+            # Remove lock from acquired_locks to keep it locked for generate new alien
+            acquired_locks.remove(self.mutex_matrix[new_pos[0]][new_pos[1]])
 
             return new_pos
 
@@ -237,7 +241,6 @@ class Environment():
             # Release all adyacents blocks
             for lock in acquired_locks:
                 lock.release()
-
 
     def lock_positions(self, list_pos):
         for pos in list_pos:
@@ -258,26 +261,9 @@ class Environment():
         BLUE = "\033[94m"
         RESET = "\033[0m"
 
-        adquired_locks = []
-
-        # Create a copy of matrix to minimize time of getting acquire all the matrix
-        try:
-            # Acquire matrix
-            for lock_list in self.mutex_matrix:
-                for lock in lock_list:
-                    lock.acquire()
-                    adquired_locks.append(lock)
-
-            matrix_copy = [row.copy() for row in self.matrix]
-
-        finally:
-            # Release matrix
-            for lock in adquired_locks:
-                lock.release()
-
         # Print matrix
 
-        for row_list in matrix_copy:
+        for row_list in self.matrix:
             str_out = ""
 
             for box in row_list:

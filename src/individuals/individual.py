@@ -37,8 +37,7 @@ class Individual (threading.Thread, ABC):
             if not self.simulation.get_environment().is_locked(self.get_pos()):
                 if (not self._attack()):
                     self._move()
-
-                if self.get_individual_type is IndividualType.AienQueen:
+                if self.alive:
                     self._incubate_eggs()
 
             time.sleep(self.sleep_time)
@@ -50,7 +49,7 @@ class Individual (threading.Thread, ABC):
 
         old_pos = self.pos
 
-        if not self.is_individual_alive():
+        if not self.alive:
             return False
 
         environment = self.simulation.get_environment()
@@ -76,7 +75,7 @@ class Individual (threading.Thread, ABC):
             self._combat(target)
 
             # Move over target pos if self is alive and target is dead
-            if not target.is_individual_alive() and self.is_individual_alive():
+            if not target.is_individual_alive() and self.alive:
                 
                 # Checking game over before moving (return True to avoid _move())
                 if not self.simulation.get_game_over():
@@ -101,7 +100,7 @@ class Individual (threading.Thread, ABC):
             self.simulation.add_query(QueryType.DEATH, (self.get_id(),  target.get_id(), target.get_pos(), target.get_individual_type(), False))
 
         self._receive_damage(target.get_splatter_damage())
-        if not self.is_individual_alive():  # Because of splatter damage
+        if not self.alive:  # Because of splatter damage
             environment.remove_individual_locked(self)
             self.simulation.add_query(QueryType.DEATH, (target.get_id(),  self.get_id(), self.get_pos(), self.get_individual_type(), True))
 
@@ -123,7 +122,6 @@ class Individual (threading.Thread, ABC):
     def _select_target(self, ady_indivs):
         pass
 
-    @abstractmethod   
     def _incubate_eggs(self):
         pass
             

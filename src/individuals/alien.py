@@ -43,7 +43,7 @@ class AlienQueen (Alien):
         self.individual_type = IndividualType.ALIEN_QUEEN
         self.egg_timer = time.monotonic()
 
-    def incubate_eggs(self):
+    def _incubate_eggs(self):
         if (time.monotonic() - self.egg_timer) >= 30:
             self.simulation.add_query(QueryType.HATCH_EGG, None)
             self.egg_timer = time.monotonic()

@@ -36,17 +36,18 @@ class Simulation:
     def add_query(self, query, queri_info):
         self.queue.put((query, queri_info))
 
-    def gen_queen_alien(self):
+    def gen_alien_queen(self):
         self.queen_id = f"QA{self.next_alien:01d}"
 
-        self.aliens[id] = AlienQueen(self.queen_id,
+        self.aliens[self.queen_id] = AlienQueen(self.queen_id,
                                      self.enviroment.get_random_empty_pos(),
                                      self)
 
-        if self.enviroment.add_individual(self.aliens[self.queen_id ], locked=False):
+        if self.enviroment.add_individual(self.aliens[self.queen_id], locked=False):
             self.next_alien += 1
         else:
-            self.aliens.pop(id)
+            self.aliens.pop(self.queen_id)
+            self.queen_id = None
         
     def gen_alien(self, pos):
         pos_locked = pos is not None
@@ -102,91 +103,12 @@ class Simulation:
             # Release lock after generate new alien in gen_alien()
             self.enviroment.get_mutex_matrix()[new_pos[0]][new_pos[1]].release()
     
-    def init(self):
-        self.gen_queen_alien()
-        for _ in range((self.init_num_predators * 5) - 1):
-            generated = self.gen_alien(None) is not None
-            while not generated:
-                generated = self.gen_alien(None)
-
-        for _ in range(self.init_num_predators):
-            generated = self.gen_predator() is not None
-            while not generated:
-                generated = self.gen_predator()
-
-        for _ in range(self.init_num_predators * 10):
-            generated = self.gen_human() is not None
-            while not generated:
-                generated = self.gen_human()
-
-    def run(self):
-
-        # Start threads execution
-        for individuals in (self.aliens, self.predators, self.humans):
-            for indiv in individuals.values():
-                indiv.start()
-                self.threads.append(indiv)
-
-        while not self.game_over:
-
-            # Gen predators
-            if self.predator_gen_buffer and self.predators:
-                predator_timer = self.predator_gen_buffer[0] 
-                while (time.monotonic() - predator_timer > 5):
-
-                    # Remove predator timer
-                    self.predator_gen_buffer.popleft()
-                    
-                    # Generate new predator
-                    predator_id = self.gen_predator()
-                    while predator_id is None:
-                        predator_id = self.gen_predator()
-
-                    # Start new thread
-                    predator = self.predators[predator_id]
-                    predator.start()
-                    self.threads.append(predator)
-
-                    predator_timer = self.predator_gen_buffer[0]
-                    self.event_buffer.append(f"Humano {predator_id} generado")
-
-            # Hatch alien eggs
-            if self.alien_eggs > 0:
-                self._hatch_alien_egg()
-
-            # Check queries from queue
-            if queue:
-                self.queue_queries()
-
-            # Prints
-            if time.monotonic() - self.timer >= 1:
-                # Print matrix
-                print("\033[H\033[J", end="", flush=True)
-                self.enviroment.print_matrix()
-                # Print buffer
-                for event in self.event_buffer:
-                    print(event)
-
-                self.timer = time.monotonic()
-
-            if (not self.aliens or not self.predators):
-                self.game_over = True
-
-        if not self.aliens and not self.predators:
-            print("Aliens and Predators terminated\n Nobody wins")
-
-        if not self.aliens:
-            print("Aliens terminated\n Predators wins")
-
-        if not self.predators:
-            print("Predators terminated\n Aliens wins")
-
-        for thread in self.threads:
-            thread.join()
-
     def queue_queries(self):
-        while self.queue:
+
+        while not self.queue.empty():
+
             query_type, data = self.queue.get()
+
             match query_type:
                 case QueryType.ATTACK:
                     # data = attacker.id, target.id, target.pos
@@ -240,7 +162,10 @@ class Simulation:
 
                 case QueryType.HATCH_EGG:
                     # data = None
-                    self.alien_eggs += 1
+                    queen = self.aliens.get(self.queen_id)
+
+                    if queen and queen.is_individual_alive():
+                        self.alien_eggs += 1
 
     def _hatch_alien_egg(self):
         alien_queen = self.aliens.get(self.queen_id)
@@ -249,22 +174,121 @@ class Simulation:
             try:
                 # Locking queen position to avoid her to move while hatching eggs
                 lock = self.enviroment.get_mutex_matrix()[pos[0]][pos[1]]
-                if lock.acquire(blocking=False):
+                lock_acquired = lock.acquire(blocking=False)
+                if lock_acquired:
 
-                    # Attempting to generate new alien
-                    alien_id = self.gen_alien_egg(self.aliens.get(self.queen_id).get_pos())
+                    # Checking queen didnt move while locking her position, and also didnt die
+                    if self.enviroment.get_matrix()[pos[0]][pos[1]] is alien_queen and alien_queen.is_individual_alive():
 
-                    if alien_id is not None:
+                        # Attempting to generate new alien
+                        alien_id = self.gen_alien_egg(self.aliens.get(self.queen_id).get_pos())
 
-                        self.alien_eggs -= 1
-                        self.event_buffer.append(f"Ha eclosionado alien {alien_id}")
+                        if alien_id is not None:
+
+                            self.alien_eggs -= 1
+                            self.event_buffer.append(f"Ha eclosionado alien {alien_id}")
+
+                            # Start new thread
+                            alien = self.aliens[alien_id]
+                            alien.start()
+                            self.threads.append(alien)
+            finally:
+                if lock_acquired:
+                    lock.release()
+
+    def init(self):
+
+        # Generate AlienQueen
+        self.gen_alien_queen()
+        while self.queen_id is None:
+            self.gen_alien_queen()
+
+        # Generate AlienSoldiers
+        for _ in range((self.init_num_predators * 5) - 1):
+            generated = self.gen_alien(None) is not None
+            while not generated:
+                generated = self.gen_alien(None)
+
+        # Generate Predators
+        for _ in range(self.init_num_predators):
+            generated = self.gen_predator() is not None
+            while not generated:
+                generated = self.gen_predator()
+
+        # Generate Humans
+        for _ in range(self.init_num_predators * 10):
+            generated = self.gen_human() is not None
+            while not generated:
+                generated = self.gen_human()
+
+    def run(self):
+
+        # Start threads execution
+        for individuals in (self.aliens, self.predators, self.humans):
+            for indiv in individuals.values():
+                indiv.start()
+                self.threads.append(indiv)
+
+        while not self.game_over:
+
+            # Check queries from queue
+            self.queue_queries()
+
+            if not self.game_over:
+
+                # Gen predators
+                if self.predator_gen_buffer and self.predators:
+                    predator_timer = self.predator_gen_buffer[0] 
+                    while (self.predator_gen_buffer and (time.monotonic() - predator_timer > 5)):
+
+                        # Generate new predator
+                        predator_id = self.gen_predator()
+                        while predator_id is None:
+                            predator_id = self.gen_predator()
 
                         # Start new thread
-                        alien = self.aliens[alien_id]
-                        alien.start()
-                        self.threads.append(alien)
-            finally:
-                lock.release()
+                        predator = self.predators[predator_id]
+                        predator.start()
+                        self.threads.append(predator)
+
+                        self.event_buffer.append(f"Humano {predator_id} generado")
+
+                        # Remove predator timer
+                        self.predator_gen_buffer.popleft()
+
+                        # Get another predator timer
+                        if self.predator_gen_buffer:
+                            predator_timer = self.predator_gen_buffer[0]
+
+                # Hatch alien eggs
+                if self.alien_eggs > 0:
+                    self._hatch_alien_egg()
+
+            # Prints
+            if time.monotonic() - self.timer >= 1:
+                # Print matrix
+                print("\033[H\033[J", end="", flush=True)
+                self.enviroment.print_matrix()
+                # Print buffer
+                for event in self.event_buffer:
+                    print(event)
+
+                self.timer = time.monotonic()
+
+            if (not self.aliens or not self.predators):
+                self.game_over = True
+
+        if not self.aliens and not self.predators:
+            print("Aliens and Predators terminated\n Nobody wins")
+
+        elif not self.aliens:
+            print("Aliens terminated\n Predators wins")
+
+        elif not self.predators:
+            print("Predators terminated\n Aliens wins")
+
+        for thread in self.threads:
+            thread.join()
 
 def main():
     environment = Environment(50)
