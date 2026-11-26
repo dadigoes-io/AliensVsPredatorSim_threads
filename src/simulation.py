@@ -84,44 +84,16 @@ class Simulation:
             if not self.game_over:
 
                 # Gen predators
-                if self.predator_gen_buffer and self.predators:
-                    predator_timer = self.predator_gen_buffer[0] 
-                    while (self.predator_gen_buffer and (time.monotonic() - predator_timer > 5)):
-
-                        # Generate new predator
-                        predator_id = self.gen_predator()
-                        if predator_id is not None:
-                            # Start new thread
-                            predator = self.predators[predator_id]
-                            predator.start()
-                            self.threads.append(predator)
-
-                            self.event_buffer.append(f"Predator {predator_id} generado")
-                        else:
-                            self.event_buffer.append("ERROR: No space for generating predator")
-
-                        # Remove predator timer
-                        self.predator_gen_buffer.popleft()
-
-                        # Get another predator timer
-                        if self.predator_gen_buffer:
-                            predator_timer = self.predator_gen_buffer[0]
+                self._respawn_predators()
 
                 # Hatch alien eggs
                 if self.alien_eggs > 0:
                     self._hatch_alien_egg()
 
             # Prints
-            if time.monotonic() - self.timer >= 1:
-                # Print matrix
-                os.system("clear")
-                self.enviroment.print_matrix()
-                # Print buffer
-                for event in self.event_buffer:
-                    print(event)
+            self._print_simulation()
 
-                self.timer = time.monotonic()
-                self._update_alive_threads_list()
+            self._update_alive_threads_list()
 
             # Avoid busy waiting
             time.sleep(0.01)
@@ -288,7 +260,37 @@ class Simulation:
 
                     if queen and queen.is_individual_alive():
                         self.alien_eggs += 1
- 
+
+    def _respawn_predators(self):
+
+        if self.predator_gen_buffer and self.predators:
+
+            predator_timer = self.predator_gen_buffer[0] 
+
+            while (self.predator_gen_buffer and (time.monotonic() - predator_timer > 5)):
+
+                # Generate new predator
+                predator_id = self.gen_predator()
+
+                if predator_id is not None:
+
+                    # Start new thread
+                    predator = self.predators[predator_id]
+                    predator.start()
+                    self.threads.append(predator)
+
+                    self.event_buffer.append(f"Predator {predator_id} generado")
+                
+                else:
+                    self.event_buffer.append("ERROR: No space for generating predator")
+
+                # Remove predator timer
+                self.predator_gen_buffer.popleft()
+
+                # Get another predator timer
+                if self.predator_gen_buffer:
+                    predator_timer = self.predator_gen_buffer[0]
+
     def _hatch_alien_egg(self):
         alien_queen = self.aliens.get(self.queen_id)
         if alien_queen and alien_queen.is_individual_alive():
@@ -332,6 +334,19 @@ class Simulation:
                 thread.join()
 
         self.threads = alive_threads
+
+    def _print_simulation(self):
+        if time.monotonic() - self.timer >= 1:
+            
+            # Print matrix
+            os.system("clear")
+            self.enviroment.print_matrix()
+
+            # Print buffer
+            for event in self.event_buffer:
+                print(event)
+
+            self.timer = time.monotonic()
 
 def main():
     environment = Environment(50)
