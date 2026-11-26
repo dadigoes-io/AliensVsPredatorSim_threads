@@ -147,7 +147,7 @@ class Simulation:
             return None
 
         try:
-            self.queen_id = f"QA{self.next_alien:01d}"
+            self.queen_id = f"AQ{self.next_alien:01d}"
             self.aliens[self.queen_id] = AlienQueen(self.queen_id, pos, self)
 
             if self.enviroment.add_individual(self.aliens[self.queen_id], locked=True):
