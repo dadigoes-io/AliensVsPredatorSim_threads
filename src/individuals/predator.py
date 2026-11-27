@@ -7,7 +7,7 @@ class Predator (Individual):
         super().__init__(id, pos, simulation)
         self.resistance = 20
         self.strength = 5
-        self.sleep_time = 2
+        self.sleep_time = simulation.get_predator_sleep_time()
         self.individual_type = IndividualType.PREDATOR
 
     def _select_target(self, ady_indivs):

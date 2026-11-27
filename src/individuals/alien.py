@@ -9,7 +9,7 @@ class Alien (Individual, ABC):
     @abstractmethod
     def __init__(self, id, pos, simulation):
         super().__init__(id, pos, simulation)
-        self.sleep_time = 1
+        self.sleep_time = simulation.get_alien_sleep_time()
 
     def get_splatter_damage(self):
         return 1
@@ -44,7 +44,7 @@ class AlienQueen (Alien):
         self.egg_timer = time.monotonic()
 
     def _incubate_eggs(self):
-        if (time.monotonic() - self.egg_timer) >= 30:
+        if (time.monotonic() - self.egg_timer) >= self.simulation.get_hatching_egg_time():
             self.simulation.add_query(QueryType.HATCH_EGG, None)
             self.egg_timer = time.monotonic()
 

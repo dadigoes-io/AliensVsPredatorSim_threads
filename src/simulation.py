@@ -10,7 +10,7 @@ import os
 
 class Simulation:
 
-    def __init__(self, enviroment: Environment):
+    def __init__(self, enviroment: Environment, config):
         self.enviroment = enviroment
         self.queue = queue.Queue()
         self.threads = []
@@ -24,9 +24,15 @@ class Simulation:
         self.next_human = 0
 
         self.queen_id = None
-        self.init_num_predators = 3
+        self.init_num_predators = config["init_num_predators"]
+        self.alien_predator_ratio = config["alien_predator_ratio"]
         self.alien_eggs = 0
+        self.hatching_egg_time = config["hatching_egg_time"]
         self.game_over = False
+
+        self.alien_sleep_time = config["alien_sleep_time"]
+        self.predator_sleep_time = config["predator_sleep_time"]
+        self.human_sleep_time = config["human_sleep_time"]
 
         self.predator_gen_buffer = deque()
         self.event_buffer = deque(maxlen=15)
@@ -37,6 +43,19 @@ class Simulation:
 
     def get_game_over(self):
         return self.game_over
+
+    def get_alien_sleep_time(self):
+        return self.alien_sleep_time
+
+    def get_predator_sleep_time(self):
+        return self.predator_sleep_time
+
+    def get_human_sleep_time(self):
+        return self.human_sleep_time
+
+    def get_hatching_egg_time(self):
+        return self.hatching_egg_time
+
 
     def add_query(self, query, queri_info):
         self.queue.put((query, queri_info))
@@ -49,7 +68,7 @@ class Simulation:
             return False
 
         # Generate AlienSoldiers
-        for _ in range((self.init_num_predators * 5) - 1):
+        for _ in range((self.init_num_predators * self.alien_predator_ratio) - 1):
             if self.gen_alien(None) is None:
                 return False
 
@@ -66,6 +85,9 @@ class Simulation:
         return True
 
     def run(self):
+
+        # Print before simulations threads starts
+        self._print_simulation(force=True)
 
         # Start threads execution
         for individuals in (self.aliens, self.predators, self.humans):
@@ -91,7 +113,7 @@ class Simulation:
                     self._hatch_alien_egg()
 
             # Prints
-            self._print_simulation()
+            self._print_simulation(force=False)
 
             self._update_alive_threads_list()
 
@@ -99,13 +121,13 @@ class Simulation:
             time.sleep(0.01)
 
         if not self.aliens and not self.predators:
-            print("Aliens and Predators terminated\n Nobody wins")
+            print("Aliens y Predators eliminados\n Nadie gana")
 
         elif not self.aliens:
-            print("Aliens terminated\n Predators wins")
+            print("Aliens eliminados\n Predators ganan")
 
         elif not self.predators:
-            print("Predators terminated\n Aliens wins")
+            print("Predators eliminados\n Aliens ganan")
 
         self._update_alive_threads_list()
         for thread in self.threads:
@@ -231,6 +253,7 @@ class Simulation:
                             self.alien_eggs = 0
                             self.aliens.pop(target_id)
 
+
                         case IndividualType.ALIEN_SOLDIER:
                             self.aliens.pop(target_id)
 
@@ -335,8 +358,8 @@ class Simulation:
 
         self.threads = alive_threads
 
-    def _print_simulation(self):
-        if time.monotonic() - self.timer >= 1:
+    def _print_simulation(self, force):
+        if force or (time.monotonic() - self.timer >= 1):
             
             # Print matrix
             os.system("clear")
@@ -348,9 +371,101 @@ class Simulation:
 
             self.timer = time.monotonic()
 
+def update_config():
+    config = {}
+
+    print("Inserte tamaño N de la matriz NxN:")
+    aux_input = int(input())
+    if aux_input <= 0:
+        raise ValueError(f"Tamaño de la matriz debe ser mayor a 0")
+    config["size"] = aux_input
+
+    print("Inserte numero inicial de Predators:")
+    aux_input = int(input())
+    if aux_input <= 0:
+        raise ValueError(f"Numero inicial de Predators debe ser mayor a 0")
+    config["init_num_predators"] = aux_input
+
+    print("Inserte numero de inicial de Aliens por cada Predator:")
+    aux_input = int(input())
+    if aux_input <= 0:
+        raise ValueError(f"Numero inicial de Alien por cada predator debe ser mayor a 0")
+    config["alien_predator_ratio"] = aux_input
+    
+    print("Inserte intervalo de tiempo entre puesta de huevos:")
+    aux_input = int(input())
+    if aux_input <= 0:
+        raise ValueError(f"Intervalo de tiempo entre puesta de huevos debe ser mayor a 0")
+    config["hatching_egg_time"]= aux_input
+
+    print("Inserte tiempo de sleep de Aliens:")
+    aux_input = int(input())
+    if aux_input <= 0:
+        raise ValueError(f"Tiempo de sleep de Aliens debe ser mayor a 0")
+    config["alien_sleep_time"] = aux_input
+
+    print("Inserte tiempo de sleep de Predators:")
+    config["predator_sleep_time"] = int(input())
+    if (config["alien_sleep_time"] >= config["predator_sleep_time"]):
+        raise ValueError("Predators no pueden ser más rápidos que los Aliens")
+
+    print("Inserte tiempo de sleep de Humanos:")
+    config["human_sleep_time"] = int(input())
+    if (config["predator_sleep_time"] >= config["human_sleep_time"]):
+        raise ValueError("Humanos no pueden ser más rápidos que los Predators")
+
+    return config
+
+def simulation_config():
+
+    config = {}
+    config["size"] = 75
+    config["init_num_predators"] = 3
+    config["alien_predator_ratio"] = 5
+    config["hatching_egg_time"]= 30
+    config["alien_sleep_time"] = 1
+    config["predator_sleep_time"] = 2
+    config["human_sleep_time"] = 3
+
+    do_config = True
+    
+    while do_config:
+        print("===Configuración actual de la simulación===")
+        print(f"Tamaño de la matriz: {config["size"]}")
+        print(f"Numero inicial de Predators: {config["init_num_predators"]}")
+        print(f"Proporción de Aliens por cada Predator: {config["alien_predator_ratio"]} a 1")
+        print(f"Tiempo de puesta de huevos de la reina Alien: {config["hatching_egg_time"]} seg")
+        print(f"Duracion de sleep de los Aliens: {config["alien_sleep_time"]} seg")
+        print(f"Duracion de sleep de los Predators: {config["predator_sleep_time"]} seg")
+        print(f"Duracion de sleep de los Humanos: {config["human_sleep_time"]} seg")
+    
+        print("¿Quiere configurar la simulacion (Y/N)?")
+        str_input = input().strip().upper()
+        do_input = True
+
+        while(do_input):
+
+            if str_input == "Y":
+                config = update_config()
+                do_input = False
+
+            elif str_input == "N":
+                do_config = False
+                do_input = False
+
+            else:
+                print("Valor no reconocido")
+                print("¿Quiere configurar la simulacion (Y/N)?")
+                str_input = input().strip().upper()
+
+    return config
+
 def main():
-    environment = Environment(50)
-    simulation = Simulation(environment)
+
+    config = simulation_config() 
+    environment = Environment(config["size"])
+    simulation = Simulation(environment, config)
+
     if simulation.init():
         simulation.run()
     else:

@@ -12,7 +12,17 @@ class TestSimulation(unittest.TestCase):
     def setUp(self):
     
         self.enviroment = Environment(5)
-        self.simulation = Simulation(self.enviroment)
+
+        config = {
+            "init_num_predators": 1,
+            "alien_predator_ratio": 2,
+            "hatching_egg_time": 30,
+            "alien_sleep_time": 1,
+            "predator_sleep_time": 2,
+            "human_sleep_time": 3
+        }
+
+        self.simulation = Simulation(self.enviroment, config)
 
     def test_predator_attacks_alien_queen_over_alien_soldier(self):
 

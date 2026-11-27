@@ -8,7 +8,7 @@ class Human (Individual):
         super().__init__(id, pos, simulation)
         self.resistance = 3
         self.strength = 2
-        self.sleep_time = 3
+        self.sleep_time = simulation.get_human_sleep_time()
         self.individual_type = IndividualType.HUMAN
 
     def _select_target(self, ady_indivs):
