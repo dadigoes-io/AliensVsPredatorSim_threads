@@ -198,16 +198,11 @@ class TestSimulation(unittest.TestCase):
         self.assertNotIn("H00", self.simulation.humans)
         self.assertEqual(len(self.simulation.humans), 1)
 
-        human_ids = set(self.simulation.humans) - {"H00"}
-        self.assertEqual(len(human_ids), 1)
-
-        new_human_id = human_ids.pop()
-        new_human = self.simulation.humans[new_human_id]
+        self.assertIn("H01", self.simulation.humans)
+        new_human = self.simulation.humans["H01"]
 
         new_human.join()
 
-        self.assertNotEqual(new_human_id, "H00")
-        self.assertEqual(new_human_id, "H01")
         self.assertIsInstance(new_human, Human)
         self.assertFalse(new_human.is_alive())
 
@@ -275,11 +270,8 @@ class TestSimulation(unittest.TestCase):
         self.assertEqual(len(self.simulation.predator_gen_buffer), 0)
 
         # Check new predator
-        predator_ids = set(self.simulation.predators) - {"P01"}
-        self.assertEqual(len(predator_ids), 1)
-
-        new_predator_id = predator_ids.pop()
-        new_predator = self.simulation.predators[new_predator_id]
+        self.assertIn("P02", self.simulation.predators)
+        new_predator = self.simulation.predators["P02"]
 
         new_predator.join()
 
@@ -311,7 +303,7 @@ class TestSimulation(unittest.TestCase):
             queen._incubate_eggs()
 
         # Check query
-        query_type, data = self.simulation.queue.get_nowait()
+        query_type, data = self.simulation.queue.get()
 
         self.assertEqual(query_type, QueryType.HATCH_EGG)
 
@@ -327,11 +319,8 @@ class TestSimulation(unittest.TestCase):
         self.assertEqual(self.simulation.alien_eggs, 0)
 
         # Check new alien
-        new_alien_id = set(self.simulation.aliens) - {"AQ00"}
-
-        self.assertEqual(len(new_alien_id), 1)
-
-        new_alien = self.simulation.aliens[new_alien_id.pop()]
+        self.assertIn("A01", self.simulation.aliens)
+        new_alien = self.simulation.aliens["A01"]
 
         new_alien.join()
 
@@ -348,7 +337,7 @@ class TestSimulation(unittest.TestCase):
 
         self.assertIs(self.enviroment.get_matrix()[new_pos[0]][new_pos[1]], new_alien)
 
-    def test_locks_are_released_after_attack_and_movement(self):
+    def test_locks_are_released_after_attack_and_movement(self):                                                                                
 
         # Individuals
         predator = Predator("P00", (2, 2), self.simulation)
@@ -362,7 +351,7 @@ class TestSimulation(unittest.TestCase):
         self.assertTrue(self.enviroment.add_individual(predator, locked=False))
         self.assertTrue(self.enviroment.add_individual(queen, locked=False))
 
-        # Lock target position manually
+        # Lock target (queen) position manually
         target_lock = self.enviroment.get_mutex_matrix()[2][3]
 
         self.assertTrue(target_lock.acquire(blocking=False))
@@ -381,52 +370,59 @@ class TestSimulation(unittest.TestCase):
         self.assertTrue(predator._attack())
 
         # Check all locks are released
-        self.assertFalse(
-            any(
-                lock.locked()
-                for row in self.enviroment.get_mutex_matrix()
-                for lock in row
-            )
-        )
+        for row in self.enviroment.get_mutex_matrix():
+            for lock in row:
+                self.assertFalse(lock.locked())
 
         # Move
         predator._move()
 
         # Check all locks are released
-        self.assertFalse(
-            any(
-                lock.locked()
-                for row in self.enviroment.get_mutex_matrix()
-                for lock in row
-            )
-        )
+        for row in self.enviroment.get_mutex_matrix():
+            for lock in row:
+                self.assertFalse(lock.locked())
 
     def test_simulation_ends_and_joins_threads(self):
 
-        # Individual
-        predator = Predator("P00", (2, 2), self.simulation)
-        predator.sleep_time = 0.01
+        # Individuals
+        predator1 = Predator("P00", (0, 0), self.simulation)
+        predator2 = Predator("P01", (4, 4), self.simulation)
+        human1 = Human("H00", (0, 4), self.simulation)
+        human2 = Human("H01", (4, 0), self.simulation)
 
-        # Add individual to simulation
-        self.simulation.predators["P00"] = predator
+        predator1.sleep_time = 0.01
+        predator2.sleep_time = 0.01
+        human1.sleep_time = 0.01
+        human2.sleep_time = 0.01
 
-        # Add individual to environment
-        self.assertTrue(self.enviroment.add_individual(predator, locked=False))
+        # Add individuals to simulation
+        self.simulation.predators["P00"] = predator1
+        self.simulation.predators["P01"] = predator2
+        self.simulation.humans["H00"] = human1
+        self.simulation.humans["H01"] = human2
+
+        # Add individuals to environment
+        self.assertTrue(self.enviroment.add_individual(predator1, locked=False))
+        self.assertTrue(self.enviroment.add_individual(predator2, locked=False))
+        self.assertTrue(self.enviroment.add_individual(human1, locked=False))
+        self.assertTrue(self.enviroment.add_individual(human2, locked=False))
 
         # Mock to avoid prints during test
-        with patch("builtins.print"): 
+        with patch("builtins.print"):
             with patch("simulation.os.system"):
                 self.simulation.run()
 
-        # Check simulation end
+        # Check simulation end (because no aliens alive)
         self.assertTrue(self.simulation.get_game_over())
 
-        # Check threads termination
-        self.assertFalse(predator.is_alive())
+        # Check threads termination (individual and in thread list in simulation)
+        self.assertFalse(predator1.is_alive())
+        self.assertFalse(predator2.is_alive())
+        self.assertFalse(human1.is_alive())
+        self.assertFalse(human2.is_alive())
 
-        self.assertTrue(
-            all(not thread.is_alive() for thread in self.simulation.threads)
-        )
+        for thread in self.simulation.threads:
+            self.assertFalse(thread.is_alive())
 
 if __name__ == "__main__":
     unittest.main()

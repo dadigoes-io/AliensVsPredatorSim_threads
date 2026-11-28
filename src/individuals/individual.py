@@ -91,15 +91,24 @@ class Individual (threading.Thread, ABC):
         # Damage over target
         target._receive_damage(self.strength)
         if target.is_individual_alive():
-            self.simulation.add_query(QueryType.ATTACK, (self.get_id(), target.get_id(), target.get_pos()))
+            self.simulation.add_query(
+                QueryType.ATTACK,
+                (self.get_id(), target.get_id(), target.get_pos())
+            )
         else:
             environment.remove_individual_locked(target)
-            self.simulation.add_query(QueryType.DEATH, (self.get_id(),  target.get_id(), target.get_pos(), target.get_individual_type(), False))
+            self.simulation.add_query(
+                QueryType.DEATH, 
+                (self.get_id(),  target.get_id(), target.get_pos(), target.get_individual_type(), False)
+            )
 
         self._receive_damage(target.get_splatter_damage())
         if not self.alive:  # Because of splatter damage
             environment.remove_individual_locked(self)
-            self.simulation.add_query(QueryType.DEATH, (target.get_id(),  self.get_id(), self.get_pos(), self.get_individual_type(), True))
+            self.simulation.add_query(
+                QueryType.DEATH, 
+                (target.get_id(),  self.get_id(), self.get_pos(), self.get_individual_type(), True)
+            )
 
     def _receive_damage(self, damage):
         self.resistance -= damage
