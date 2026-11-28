@@ -12,6 +12,8 @@ class Individual (threading.Thread, ABC):
         self.pos = pos
         self.simulation = simulation
         self.alive = True
+        # Counter used only for stress tests
+        self.activity_cycles = 0
 
     def get_id(self):
         return self.id;
@@ -34,6 +36,7 @@ class Individual (threading.Thread, ABC):
     def run(self):
 
         while (self.alive and not self.simulation.get_game_over()):
+
             if not self.simulation.get_environment().is_locked(self.get_pos()):
                 if (not self._attack()):
                     self._move()
